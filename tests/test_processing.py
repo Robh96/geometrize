@@ -4,11 +4,14 @@ import open3d as o3d
 from geometrize.data_processing import load_stl_to_pointcloud
 from geometrize.config import Config
 import matplotlib.pyplot as plt
+import pytest
+from geometrize.generate_test_shapes import save_test_shapes
 
 def visualize_point_cloud(points, title="Point Cloud"):
     """Visualize a point cloud using Open3D."""
     pcd = o3d.geometry.PointCloud()
     pcd.points = o3d.utility.Vector3dVector(points)
+    
     
     # Add colors based on coordinate values for better visualization
     colors = (points - points.min(axis=0)) / (points.max(axis=0) - points.min(axis=0))
@@ -55,32 +58,41 @@ def plot_point_cloud_stats(points):
     plt.savefig(os.path.join(Config.output_dir, "point_distribution.png"))
     plt.show()
 
+@pytest.fixture
+def stl_path():
+    """Fixture that provides a path to a test STL file"""
+    # Ensure we have test shapes
+    os.makedirs(Config.data_dir, exist_ok=True)
+    test_stl_path = os.path.join(Config.data_dir, "sphere.stl")
+    
+    # If the test file doesn't exist, generate it
+    if not os.path.exists(test_stl_path):
+        save_test_shapes()
+    
+    return test_stl_path
+
 def test_stl_processing(stl_path, n_points=2048):
-    """Test the full STL processing pipeline."""
-    # Ensure output directory exists
-    os.makedirs(Config.output_dir, exist_ok=True)
+    """Test loading and processing an STL file"""
+    # Load the point cloud
+    point_cloud = load_stl_to_pointcloud(stl_path, n_points)
     
-    # Process the STL file
-    print(f"Processing STL file: {stl_path}")
-    try:
-        points = load_stl_to_pointcloud(stl_path, n_points)
-    except Exception as e:
-        print(f"Error loading STL file: {e}")
-        return
+    # Check basic properties
+    assert point_cloud is not None, "Point cloud should not be None"
+    assert isinstance(point_cloud, np.ndarray), "Point cloud should be a numpy array"
+    assert point_cloud.shape == (n_points, 3), f"Point cloud should have shape ({n_points}, 3)"
     
-    # Verify the normalization
-    is_centered, is_scaled = verify_normalization(points)
-    print(f"Point cloud properly centered: {is_centered}")
-    print(f"Point cloud properly scaled: {is_scaled}")
-    print(f"Point cloud shape: {points.shape}")
+    # Check normalization
+    assert np.min(point_cloud) >= -1.0, "Point cloud should be normalized to [-1, 1]"
+    assert np.max(point_cloud) <= 1.0, "Point cloud should be normalized to [-1, 1]"
     
-    # Visualize the point cloud
-    visualize_point_cloud(points, "Normalized Point Cloud")
+    # Check for NaNs or Infs
+    assert not np.isnan(point_cloud).any(), "Point cloud should not contain NaN values"
+    assert not np.isinf(point_cloud).any(), "Point cloud should not contain Inf values"
     
-    # Plot statistics
-    plot_point_cloud_stats(points)
+    print(f"Successfully loaded point cloud from {stl_path} with {n_points} points")
     
-    return points
+    # Store for other tests without returning
+    test_stl_processing.point_cloud = point_cloud
 
 if __name__ == "__main__":
     # Test with a sample STL file

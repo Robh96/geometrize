@@ -45,7 +45,9 @@ def test_pointnet_encoder():
     os.makedirs(Config.output_dir, exist_ok=True)
     plt.savefig(os.path.join(Config.output_dir, 'latent_space_projection.png'))
     
-    return mu, logvar
+    # Store values for other tests without returning them
+    test_pointnet_encoder.mu = mu
+    test_pointnet_encoder.logvar = logvar
 
 def reparameterize(mu, logvar):
     """Test the reparameterization trick"""
@@ -102,7 +104,10 @@ def test_transformer_decoder():
     
     print("Transformer decoder test passed!")
     
-    return token_probs, bin_probs, offsets
+    # Store for other tests without returning
+    test_transformer_decoder.token_probs = token_probs
+    test_transformer_decoder.bin_probs = bin_probs
+    test_transformer_decoder.offsets = offsets
 
 def test_vae_pipeline():
     """Test the complete VAE pipeline (encoder -> reparameterize -> decoder)"""
@@ -139,6 +144,12 @@ def test_vae_pipeline():
     print(f"- Sampled z: {z.shape}")
     print(f"- Token probs: {token_probs.shape}")
     print(f"- Bin probs: {bin_probs.shape}")
+    
+    # Make sure all shapes are as expected
+    assert mu.shape == (batch_size, latent_dim)
+    assert logvar.shape == (batch_size, latent_dim)
+    assert z.shape == (batch_size, latent_dim)
+    assert token_probs.shape[0] == batch_size
     
     print("VAE pipeline test passed!")
 
@@ -179,6 +190,9 @@ def test_token_prediction():
         bin_value = pred_bins[i]
         print(f"{i}: {token_name} (bin: {bin_value})")
     
+    # Make sure we have a valid sequence
+    assert len(pred_tokens) > 0, "Should have predicted at least one token"
+    
     print("Token prediction test passed!")
 
 def run_all_tests():
@@ -187,10 +201,10 @@ def run_all_tests():
     os.makedirs(Config.output_dir, exist_ok=True)
     
     # Test encoder
-    mu, logvar = test_pointnet_encoder()
+    test_pointnet_encoder()
     
     # Test decoder
-    token_probs, bin_probs, offsets = test_transformer_decoder()
+    test_transformer_decoder()
     
     # Test full VAE pipeline
     test_vae_pipeline()

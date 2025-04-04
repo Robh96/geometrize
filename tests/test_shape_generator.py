@@ -41,8 +41,12 @@ def test_primitive_creation():
     
     # Get the point cloud
     points = generator.to_pointcloud(n_points=1024)
+    assert points is not None, "Points should not be None"
+    assert points.shape[0] > 0, "Should have generated some points"
+    assert points.shape[1] == 3, "Points should be 3D coordinates"
+    
     print("Sphere created successfully")
-    return points
+    test_primitive_creation.points = points
 
 def test_transformations():
     """Test various transformations."""
@@ -75,8 +79,16 @@ def test_transformations():
     
     # Get the point cloud
     points = generator.to_pointcloud(n_points=1024)
+    
+    # Verify the points
+    assert points is not None, "Points should not be None"
+    assert points.shape[0] > 0, "Should have generated some points"
+    assert points.shape[1] == 3, "Points should be 3D coordinates"
+    
     print("Box with transformations created successfully")
-    return points
+    
+    # Store for other tests without returning
+    test_transformations.points = points
 
 def test_boolean_operations():
     """Test boolean operations."""
@@ -108,8 +120,16 @@ def test_boolean_operations():
     
     # Get the point cloud
     points = generator.to_pointcloud(n_points=1024)
+    
+    # Verify the points
+    assert points is not None, "Points should not be None"
+    assert points.shape[0] > 0, "Should have generated some points"
+    assert points.shape[1] == 3, "Points should be 3D coordinates"
+    
     print("Boolean operation completed successfully")
-    return points
+    
+    # Store for other tests without returning
+    test_boolean_operations.points = points
 
 def test_complex_shape():
     """Test creating a more complex shape with multiple operations."""
@@ -172,8 +192,16 @@ def test_complex_shape():
     
     # Get the point cloud
     points = generator.to_pointcloud(n_points=2048)
+    
+    # Verify the points
+    assert points is not None, "Points should not be None"
+    assert points.shape[0] > 0, "Should have generated some points"
+    assert points.shape[1] == 3, "Points should be 3D coordinates"
+    
     print("Complex shape created successfully")
-    return points
+    
+    # Store for other tests without returning
+    test_complex_shape.points = points
 
 def test_generate_shape_from_tokens():
     """Test the helper function to generate shapes from tokens."""
@@ -198,16 +226,28 @@ def test_generate_shape_from_tokens():
     print("\n=== Testing generate_shape_from_tokens ===")
     print(f"Generated point cloud with {len(points)} points")
     
+    # Verify the points
+    assert points is not None, "Points should not be None"
+    assert points.shape[0] > 0, "Should have generated some points"
+    assert points.shape[1] == 3, "Points should be 3D coordinates"
+    
     # Create a similar shape with slight differences
     modified_tokens = tokens.copy()
     modified_tokens[0]['parameters']['radius'] = 0.35  # Slightly different radius
     points2 = generate_shape_from_tokens(modified_tokens)
     
+    # Check second set of points
+    assert points2 is not None, "Second points should not be None"
+    assert points2.shape[0] > 0, "Should have generated some points"
+    assert points2.shape[1] == 3, "Points should be 3D coordinates"
+    
     # Compute chamfer distance
     distance = compute_chamfer_distance(points, points2)
     print(f"Chamfer distance between similar shapes: {distance:.6f}")
     
-    return points
+    # Store for other tests without returning
+    test_generate_shape_from_tokens.points = points
+    test_generate_shape_from_tokens.points2 = points2
 
 def save_visualization(points, filename):
     """Save point cloud visualization as an image."""
@@ -253,30 +293,30 @@ def run_all_tests():
     os.makedirs(Config.output_dir, exist_ok=True)
     
     # Test primitive creation
-    sphere_points = test_primitive_creation()
-    save_visualization(sphere_points, "sphere_primitive.png")
+    test_primitive_creation()
+    save_visualization(test_primitive_creation.points, "sphere_primitive.png")
     
     # Test transformations
-    transformed_box_points = test_transformations()
-    save_visualization(transformed_box_points, "transformed_box.png")
+    test_transformations()
+    save_visualization(test_transformations.points, "transformed_box.png")
     
     # Test boolean operations
-    boolean_points = test_boolean_operations()
-    save_visualization(boolean_points, "boolean_difference.png")
+    test_boolean_operations()
+    save_visualization(test_boolean_operations.points, "boolean_difference.png")
     
     # Test complex shape
-    complex_points = test_complex_shape()
-    save_visualization(complex_points, "complex_shape.png")
+    test_complex_shape()
+    save_visualization(test_complex_shape.points, "complex_shape.png")
     
     # Test generate from tokens function
-    generated_points = test_generate_shape_from_tokens()
-    save_visualization(generated_points, "generated_from_tokens.png")
+    test_generate_shape_from_tokens()
+    save_visualization(test_generate_shape_from_tokens.points, "generated_from_tokens.png")
     
     print("\nAll tests completed! Visualizations saved to output directory.")
     
     # Choose one shape to visualize with open3d
     print("\nDisplaying complex shape with Open3D viewer (close window to continue):")
-    visualize_point_cloud(complex_points, "Complex Shape Visualization")
+    visualize_point_cloud(test_complex_shape.points, "Complex Shape Visualization")
 
 if __name__ == "__main__":
     run_all_tests()

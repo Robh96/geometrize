@@ -101,11 +101,19 @@ def test_sphere_token_sequence():
     # Generate shape from operations
     points = generate_shape_from_tokens(operations)
     
+    # Verify we got valid points
+    assert points is not None, "Should generate valid points"
+    assert points.shape[1] == 3, "Points should be 3D coordinates"
+    assert len(points) > 0, "Should have generated some points"
+    
     # Visualize the point cloud
     visualize_point_cloud(points, "Sphere from Tokens")
     
     print("Sphere token sequence test passed!")
-    return operations
+    
+    # Store for other tests without returning
+    test_sphere_token_sequence.operations = operations
+    test_sphere_token_sequence.points = points
 
 def test_complex_token_sequence():
     """Test a more complex token sequence with transformations and boolean operations"""
@@ -151,7 +159,6 @@ def test_complex_token_sequence():
         token_map.get_id('NULL')
     ])
     
-    # Create bin values (not all will be used)
     bins = np.array([
         0, 0, 10, 0, 10, 0, 5, 0, 8,  # Sphere
         0, 0, 10, 0, 10, 0, 15, 0, 8, 0, 8, 0, 8,  # Cube
@@ -177,11 +184,19 @@ def test_complex_token_sequence():
     # Generate shape from operations
     points = generate_shape_from_tokens(operations)
     
+    # Verify we got valid points
+    assert points is not None, "Should generate valid points"
+    assert points.shape[1] == 3, "Points should be 3D coordinates"
+    assert len(points) > 0, "Should have generated some points"
+    
     # Visualize the point cloud
     visualize_point_cloud(points, "Complex Shape from Tokens")
     
     print("Complex token sequence test passed!")
-    return operations
+    
+    # Store for other tests without returning
+    test_complex_token_sequence.operations = operations
+    test_complex_token_sequence.points = points
 
 def test_random_token_sequences():
     """Test conversion of random token sequences"""

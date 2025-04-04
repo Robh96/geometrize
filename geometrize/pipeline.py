@@ -359,7 +359,7 @@ def load_or_generate_data():
     else:
         logging.info("Not enough real data found, generating synthetic data")
         # Generate synthetic data
-        from generate_test_shapes import save_test_shapes
+        from geometrize.generate_test_shapes import save_test_shapes
         save_test_shapes()  # This will create basic shapes in the data directory
         
         # Get the newly generated shapes

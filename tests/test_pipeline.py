@@ -36,6 +36,12 @@ def test_data_loading():
     
     print(f"Batch shapes: points={point_clouds.shape}, tokens={tokens.shape}")
     
+    # Verify shapes
+    assert len(data_paths) > 0, "Should have loaded at least one data sample"
+    assert len(token_sequences) == len(data_paths), "Should have one token sequence per data path"
+    assert point_clouds.shape[0] > 0, "Should have at least one point cloud in batch"
+    assert tokens.shape[0] == point_clouds.shape[0], "Should have same batch size for points and tokens"
+    
     # Visualize first point cloud
     fig = plt.figure(figsize=(8, 6))
     ax = fig.add_subplot(111, projection='3d')
@@ -63,7 +69,10 @@ def test_data_loading():
     plt.close()
     
     print("Data loading test passed!")
-    return data_paths, token_sequences
+    
+    # Store results for other tests without returning
+    test_data_loading.data_paths = data_paths
+    test_data_loading.token_sequences = token_sequences
 
 def test_token_generation():
     """Test synthetic token generation"""
@@ -82,8 +91,16 @@ def test_token_generation():
         print("  First few tokens:", [token_map.get_token(int(t)) for t in tokens[:5]])
         print("  First few bins:", bins[:5].numpy())
     
+    # Verify sequences
+    assert len(token_sequences) == num_sequences, "Should have generated the requested number of sequences"
+    for seq in token_sequences:
+        assert seq.shape[1] == 2, "Each sequence should have 2 columns (tokens and bins)"
+        assert len(seq) > 0, "Sequences should not be empty"
+    
     print("Token generation test passed!")
-    return token_sequences
+    
+    # Store results for other tests without returning
+    test_token_generation.token_sequences = token_sequences
 
 def test_token_to_operation_conversion():
     """Test conversion of tokens to shape operations"""
@@ -118,8 +135,14 @@ def test_token_to_operation_conversion():
             else:
                 print(f"  {key}: {value}")
     
+    # Verify operations
+    assert len(operations) > 0, "Should have generated at least one operation"
+    assert 'operation' in operations[0], "Operation should have an 'operation' key"
+    
     print("Token to operation conversion test passed!")
-    return operations
+    
+    # Store results for other tests without returning
+    test_token_to_operation_conversion.operations = operations
 
 def test_reparameterization():
     """Test reparameterization trick for VAE"""
@@ -166,7 +189,9 @@ def test_reparameterization():
     plt.close()
     
     print("Reparameterization test passed!")
-    return samples
+    
+    # Store results for other tests without returning
+    test_reparameterization.samples = samples
 
 def test_mini_training_loop():
     """Test a mini training loop to ensure everything works together"""
@@ -244,6 +269,10 @@ def test_mini_training_loop():
         avg_epoch_loss = epoch_loss / len(dataloader)
         print(f"Epoch {epoch+1}/{num_epochs} - Loss: {avg_epoch_loss:.4f}, Time: {epoch_time:.2f}s")
     
+    # Verify losses
+    assert len(batch_losses) > 0, "Should have recorded some batch losses"
+    assert all(not np.isnan(loss) for loss in batch_losses), "Losses should not be NaN"
+    
     # Plot loss curve
     plt.figure(figsize=(10, 5))
     plt.plot(batch_losses)
@@ -285,7 +314,10 @@ def test_mini_training_loop():
             else:
                 print(f"{i}: {token_name} (bin: N/A)")
     
-    return encoder, decoder, batch_losses
+    # Store results without returning
+    test_mini_training_loop.encoder = encoder
+    test_mini_training_loop.decoder = decoder
+    test_mini_training_loop.batch_losses = batch_losses
 
 def run_all_tests():
     """Run all pipeline tests"""
@@ -293,19 +325,19 @@ def run_all_tests():
     os.makedirs(Config.output_dir, exist_ok=True)
     
     # Test data loading
-    data_paths, token_sequences = test_data_loading()
+    test_data_loading()
     
     # Test token generation
-    token_sequences = test_token_generation()
+    test_token_generation()
     
     # Test token to operation conversion
-    operations = test_token_to_operation_conversion()
+    test_token_to_operation_conversion()
     
     # Test reparameterization
-    samples = test_reparameterization()
+    test_reparameterization()
     
     # Test mini training loop
-    encoder, decoder, batch_losses = test_mini_training_loop()
+    test_mini_training_loop()
     
     print("\nAll pipeline tests completed successfully!")
 
