@@ -1,8 +1,8 @@
 import os
 import numpy as np
 import open3d as o3d
-from data_processing import load_stl_to_pointcloud
-from config import Config
+from geometrize.data_processing import load_stl_to_pointcloud
+from geometrize.config import Config
 import matplotlib.pyplot as plt
 
 def visualize_point_cloud(points, title="Point Cloud"):

@@ -2,13 +2,13 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
-from token_map import TokenMap
-from shape_generator import (
+from geometrize.token_map import TokenMap
+from geometrize.shape_generator import (
     OperationType, PrimitiveType, TransformType, BooleanType,
     generate_shape_from_tokens
 )
-from pipeline import convert_tokens_to_operations
-from config import Config
+from geometrize.pipeline import convert_tokens_to_operations
+from geometrize.config import Config
 import os
 import random
 

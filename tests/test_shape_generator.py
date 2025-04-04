@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import open3d as o3d
-from shape_generator import ShapeGenerator, OperationType, PrimitiveType, TransformType, BooleanType
+from geometrize.shape_generator import ShapeGenerator, OperationType, PrimitiveType, TransformType, BooleanType
 from build123d import *
 import os
-from config import Config
+from geometrize.config import Config
 
 def visualize_point_cloud(points, title="Point Cloud"):
     """Visualize a point cloud using Open3D."""
@@ -177,7 +177,7 @@ def test_complex_shape():
 
 def test_generate_shape_from_tokens():
     """Test the helper function to generate shapes from tokens."""
-    from shape_generator import generate_shape_from_tokens, compute_chamfer_distance
+    from geometrize.shape_generator import generate_shape_from_tokens, compute_chamfer_distance
     
     # Define token sequence
     tokens = [

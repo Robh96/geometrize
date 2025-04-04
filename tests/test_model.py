@@ -1,10 +1,10 @@
 import torch
-import numpy as np
 import matplotlib.pyplot as plt
-from model import PointNetEncoder, TransformerDecoder
-from token_map import TokenMap
+from geometrize.model import PointNetEncoder, TransformerDecoder
+from geometrize.token_map import TokenMap
+from geometrize.config import Config
 import os
-from config import Config
+
 
 def test_pointnet_encoder():
     """Test the PointNet encoder's forward pass"""

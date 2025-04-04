@@ -5,15 +5,15 @@ import os
 import time
 from torch.utils.data import DataLoader
 
-from pipeline import (
+from geometrize.pipeline import (
     ShapeDataset, reparameterize, load_or_generate_data,
     generate_synthetic_tokens, convert_tokens_to_operations
 )
-from model import PointNetEncoder, TransformerDecoder
-from losses import vae_loss
-from config import Config
-from token_map import TokenMap
-from shape_generator import OperationType, PrimitiveType, TransformType, BooleanType
+from geometrize.model import PointNetEncoder, TransformerDecoder
+from geometrize.losses import vae_loss
+from geometrize.config import Config
+from geometrize.token_map import TokenMap
+from geometrize.shape_generator import OperationType, PrimitiveType, TransformType, BooleanType
 
 def test_data_loading():
     """Test data loading functionality"""
@@ -310,8 +310,4 @@ def run_all_tests():
     print("\nAll pipeline tests completed successfully!")
 
 if __name__ == "__main__":
-    # Import necessary modules for testing
-    from shape_generator import generate_shape_from_tokens
-    from token_map import TokenMap
-    
     run_all_tests()
