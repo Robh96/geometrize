@@ -11,7 +11,10 @@ class Config:
     batch_size = 32
     learning_rate = 0.001
     num_epochs = 100
-    beta = 0.1  # Beta-VAE parameter
+    
+    # Loss function parameters
+    beta = 0.1  # Beta weight for KL divergence term
+    shape_weight = 0.5  # Weight for shape loss (Hausdorff distance)
     
     # Paths
     data_dir = ".data/"

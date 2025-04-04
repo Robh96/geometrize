@@ -1,5 +1,6 @@
 import torch
 import torch.nn.functional as F
+from geometrize.config import Config
 
 def vae_loss(recon_token_probs, recon_bin_probs, target_tokens, target_bins, mu, logvar):
     """Combined VAE loss with reconstruction and KL divergence components."""
@@ -20,9 +21,14 @@ def vae_loss(recon_token_probs, recon_bin_probs, target_tokens, target_bins, mu,
     kl_div = -0.5 * torch.sum(1 + logvar - mu.pow(2) - logvar.exp())
     
     # Beta weight for KL term (from Beta-VAE)
-    beta = 0.1
+    beta = Config.beta if hasattr(Config, 'beta') else 0.1
     
-    return token_loss + bin_loss + beta * kl_div
+    # Calculate total loss
+    total_loss = token_loss + bin_loss + beta * kl_div
+    
+    # Return both total loss and individual components
+    # Include a placeholder for shape loss (will be 0 for pure VAE loss)
+    return total_loss, (token_loss, bin_loss, kl_div, torch.tensor(0.0))
 
 def hausdorff_distance(points1, points2):
     """Calculate Hausdorff distance between two point clouds.
@@ -58,3 +64,32 @@ def hausdorff_distance(points1, points2):
     hausdorff = torch.max(forward_hausdorff, backward_hausdorff)
     
     return hausdorff
+
+def combined_loss(token_probs, bin_probs, target_tokens, target_bins, mu, logvar, 
+                  original_points=None, generated_points=None, shape_weight=1.0):
+    """
+    Combined loss function incorporating both VAE loss and shape loss (Hausdorff distance).
+    
+    Args:
+        token_probs, bin_probs, target_tokens, target_bins, mu, logvar: VAE parameters
+        original_points: Tensor of original point clouds [B, N, 3]
+        generated_points: Tensor of generated point clouds [B, M, 3]
+        shape_weight: Weight for the shape loss component
+    
+    Returns:
+        Combined loss value and individual loss components
+    """
+    # Get VAE loss components
+    vae_loss_value, (token_loss, bin_loss, kl_loss, _) = vae_loss(
+        token_probs, bin_probs, target_tokens, target_bins, mu, logvar
+    )
+    
+    # If point clouds are provided, calculate shape loss (Hausdorff distance)
+    shape_loss = torch.tensor(0.0, device=token_probs.device)
+    if original_points is not None and generated_points is not None:
+        shape_loss = hausdorff_distance(original_points, generated_points).mean()
+        combined = vae_loss_value + shape_weight * shape_loss
+        return combined, (token_loss, bin_loss, kl_loss, shape_loss)
+    
+    # If point clouds are not provided, return only VAE loss
+    return vae_loss_value, (token_loss, bin_loss, kl_loss, shape_loss)

@@ -10,7 +10,7 @@ from geometrize.pipeline import (
     generate_synthetic_tokens, convert_tokens_to_operations
 )
 from geometrize.model import PointNetEncoder, TransformerDecoder
-from geometrize.losses import vae_loss
+from geometrize.losses import vae_loss, hausdorff_distance, combined_loss
 from geometrize.config import Config
 from geometrize.token_map import TokenMap
 from geometrize.shape_generator import OperationType, PrimitiveType, TransformType, BooleanType
@@ -229,9 +229,17 @@ def test_mini_training_loop():
     # Mini training loop
     num_epochs = 2
     batch_losses = []
+    token_losses = []
+    bin_losses = []
+    kl_losses = []
+    shape_losses = []
     
     for epoch in range(num_epochs):
         epoch_loss = 0
+        epoch_token_loss = 0
+        epoch_bin_loss = 0
+        epoch_kl_loss = 0
+        epoch_shape_loss = 0
         start_time = time.time()
         
         for point_clouds, token_seqs in dataloader:
@@ -251,9 +259,41 @@ def test_mini_training_loop():
             z = reparameterize(mu, logvar)
             token_probs, bin_probs, offsets = decoder(z, token_seqs)
             
-            # Compute loss
-            loss = vae_loss(token_probs, bin_probs, target_tokens, target_bins, mu, logvar)
+            # Compute loss with component breakdown
+            loss, (token_loss, bin_loss, kl_loss, shape_loss) = vae_loss(
+                token_probs, bin_probs, target_tokens, target_bins, mu, logvar
+            )
+            
+            # Track individual losses
             batch_losses.append(loss.item())
+            token_losses.append(token_loss.item())
+            bin_losses.append(bin_loss.item())
+            kl_losses.append(kl_loss.item())
+            shape_losses.append(shape_loss.item() if hasattr(shape_loss, 'item') else 0)
+            
+            # Every other batch, try to add shape loss (for testing)
+            if len(batch_losses) % 2 == 0:
+                try:
+                    # Get predicted tokens and bins
+                    pred_tokens = torch.argmax(token_probs, dim=-1)
+                    pred_bins = torch.argmax(bin_probs, dim=-1)
+                    
+                    # Just for testing, treat original point cloud as generated for simplicity
+                    # In a real case we would generate a point cloud from the tokens
+                    perturbed_points = point_clouds + 0.1 * torch.randn_like(point_clouds)
+                    
+                    # Calculate combined loss with shape component
+                    shape_weight = 0.2
+                    combined, _ = combined_loss(
+                        token_probs, bin_probs, target_tokens, target_bins, mu, logvar,
+                        point_clouds, perturbed_points, shape_weight
+                    )
+                    
+                    # Use the combined loss instead
+                    loss = combined
+                    
+                except Exception as e:
+                    print(f"Warning: Error calculating shape loss: {e}")
             
             # Backpropagation
             loss.backward()
@@ -263,24 +303,53 @@ def test_mini_training_loop():
             
             # Add batch loss
             epoch_loss += loss.item()
+            epoch_token_loss += token_loss.item()
+            epoch_bin_loss += bin_loss.item()
+            epoch_kl_loss += kl_loss.item()
+            if hasattr(shape_loss, 'item'):
+                epoch_shape_loss += shape_loss.item()
         
         # Report epoch stats
         epoch_time = time.time() - start_time
         avg_epoch_loss = epoch_loss / len(dataloader)
+        avg_token_loss = epoch_token_loss / len(dataloader)
+        avg_bin_loss = epoch_bin_loss / len(dataloader)
+        avg_kl_loss = epoch_kl_loss / len(dataloader)
+        avg_shape_loss = epoch_shape_loss / len(dataloader)
+        
         print(f"Epoch {epoch+1}/{num_epochs} - Loss: {avg_epoch_loss:.4f}, Time: {epoch_time:.2f}s")
+        print(f"  Token: {avg_token_loss:.4f}, Bin: {avg_bin_loss:.4f}, KL: {avg_kl_loss:.4f}, Shape: {avg_shape_loss:.4f}")
     
     # Verify losses
     assert len(batch_losses) > 0, "Should have recorded some batch losses"
     assert all(not np.isnan(loss) for loss in batch_losses), "Losses should not be NaN"
+    assert all(not np.isnan(loss) for loss in token_losses), "Token losses should not be NaN"
+    assert all(not np.isnan(loss) for loss in bin_losses), "Bin losses should not be NaN"
+    assert all(not np.isnan(loss) for loss in kl_losses), "KL losses should not be NaN"
     
-    # Plot loss curve
-    plt.figure(figsize=(10, 5))
-    plt.plot(batch_losses)
+    # Plot loss curve with components
+    plt.figure(figsize=(12, 6))
+    plt.subplot(1, 2, 1)
+    plt.plot(batch_losses, label='Total Loss')
     plt.xlabel('Batch')
     plt.ylabel('Loss')
     plt.title('Training Loss')
     plt.grid(True)
-    plt.savefig(os.path.join(Config.output_dir, 'mini_training_loss.png'))
+    plt.legend()
+    
+    plt.subplot(1, 2, 2)
+    plt.plot(token_losses, label='Token Loss')
+    plt.plot(bin_losses, label='Bin Loss')
+    plt.plot(kl_losses, label='KL Loss')
+    plt.plot(shape_losses, label='Shape Loss')
+    plt.xlabel('Batch')
+    plt.ylabel('Loss Component')
+    plt.title('Loss Components')
+    plt.grid(True)
+    plt.legend()
+    
+    plt.tight_layout()
+    plt.savefig(os.path.join(Config.output_dir, 'mini_training_loss_components.png'))
     plt.close()
     
     print("Mini training loop test passed!")
@@ -318,6 +387,65 @@ def test_mini_training_loop():
     test_mini_training_loop.encoder = encoder
     test_mini_training_loop.decoder = decoder
     test_mini_training_loop.batch_losses = batch_losses
+    test_mini_training_loop.component_losses = (token_losses, bin_losses, kl_losses, shape_losses)
+
+def test_loss_component_tracking():
+    """Test that loss component tracking works correctly"""
+    print("\n=== Testing Loss Component Tracking ===")
+    
+    # Create sample data
+    batch_size = 2
+    seq_length = 8
+    token_dim = len(TokenMap().token_to_id)
+    num_bins = Config.num_bins
+    latent_dim = Config.latent_dim
+    
+    # Sample tensors
+    token_probs = torch.randn(batch_size, seq_length, token_dim)
+    bin_probs = torch.randn(batch_size, seq_length, num_bins)
+    target_tokens = torch.randint(0, token_dim, (batch_size, seq_length))
+    target_bins = torch.randint(0, num_bins, (batch_size, seq_length))
+    mu = torch.randn(batch_size, latent_dim)
+    logvar = torch.randn(batch_size, latent_dim)
+    
+    # Calculate VAE loss with components
+    loss, (token_loss, bin_loss, kl_loss, shape_loss) = vae_loss(
+        token_probs, bin_probs, target_tokens, target_bins, mu, logvar
+    )
+    
+    print(f"Loss components - Total: {loss.item()}, Token: {token_loss.item()}, "
+          f"Bin: {bin_loss.item()}, KL: {kl_loss.item()}")
+    
+    # Make sure each component contributes to the total
+    assert token_loss > 0, "Token loss should be positive"
+    assert bin_loss > 0, "Bin loss should be positive"
+    assert kl_loss != 0, "KL loss should not be zero"
+    
+    # Verify beta weighting is applied correctly
+    beta = Config.beta if hasattr(Config, 'beta') else 0.1
+    expected_loss = token_loss + bin_loss + beta * kl_loss
+    assert torch.isclose(loss, expected_loss), f"Expected {expected_loss.item()}, got {loss.item()}"
+    
+    # Create a dummy point cloud for shape loss testing
+    points1 = torch.randn(batch_size, 100, 3)
+    points2 = points1 + 0.1 * torch.randn_like(points1)
+    
+    # Test combined loss with shape component
+    shape_weight = 0.5
+    combined, (t_loss, b_loss, k_loss, s_loss) = combined_loss(
+        token_probs, bin_probs, target_tokens, target_bins, mu, logvar,
+        points1, points2, shape_weight
+    )
+    
+    print(f"Combined loss components - Total: {combined.item()}, Shape: {s_loss.item()}")
+    
+    # Verify shape loss is included correctly
+    assert s_loss > 0, "Shape loss should be positive"
+    expected_combined = token_loss + bin_loss + beta * kl_loss + shape_weight * s_loss
+    assert torch.isclose(combined, expected_combined, rtol=1e-5), \
+           f"Expected combined {expected_combined.item()}, got {combined.item()}"
+    
+    print("Loss component tracking test passed!")
 
 def run_all_tests():
     """Run all pipeline tests"""
@@ -335,6 +463,9 @@ def run_all_tests():
     
     # Test reparameterization
     test_reparameterization()
+    
+    # Test loss component tracking (add this new test)
+    test_loss_component_tracking()
     
     # Test mini training loop
     test_mini_training_loop()

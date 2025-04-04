@@ -438,6 +438,10 @@ def train():
     best_val_loss = float('inf')
     train_losses = []
     val_losses = []
+    train_token_losses = []
+    train_bin_losses = []
+    train_kl_losses = []
+    train_shape_losses = []
     
     # Training loop
     for epoch in range(Config.num_epochs):
@@ -474,8 +478,48 @@ def train():
             # Decode latent vector to token and bin predictions
             token_probs, bin_probs, offsets = decoder(z, token_seqs)
             
-            # Compute loss
-            loss = vae_loss(token_probs, bin_probs, target_tokens, target_bins, mu, logvar)
+            # Standard VAE loss calculation
+            loss, (token_loss, bin_loss, kl_loss, shape_loss) = vae_loss(
+                token_probs, bin_probs, target_tokens, target_bins, mu, logvar
+            )
+            
+            # For some batches, calculate shape loss
+            if batch_idx % 5 == 0:  # Every 5 batches to save computation
+                try:
+                    # Get predicted tokens and bins
+                    pred_tokens = torch.argmax(token_probs, dim=-1)
+                    pred_bins = torch.argmax(bin_probs, dim=-1)
+                    
+                    # Sample a few examples from the batch
+                    sample_indices = torch.randint(0, point_clouds.size(0), (min(2, point_clouds.size(0)),))
+                    
+                    for idx in sample_indices:
+                        # Convert predicted tokens to operations
+                        token_ops = convert_tokens_to_operations(
+                            pred_tokens[idx].cpu().numpy(),
+                            pred_bins[idx].cpu().numpy()
+                        )
+                        
+                        # Generate point cloud from operations
+                        gen_points = generate_shape_from_tokens(token_ops)
+                        
+                        if gen_points is not None:
+                            # Convert to tensor and prepare for distance calculation
+                            gen_points_tensor = torch.tensor(gen_points, 
+                                                            dtype=torch.float, 
+                                                            device=device).unsqueeze(0)
+                            orig_points = point_clouds[idx].unsqueeze(0)
+                            
+                            # Calculate Hausdorff distance
+                            shape_distance = hausdorff_distance(orig_points, gen_points_tensor)
+                            shape_loss = shape_distance.mean()
+                            
+                            # Add weighted shape loss to the total loss
+                            shape_weight = Config.shape_weight if hasattr(Config, 'shape_weight') else 0.1
+                            loss = loss + shape_weight * shape_loss
+                            break  # Just use one example to save computation
+                except Exception as e:
+                    logging.warning(f"Error calculating shape loss: {e}")
             
             # Backpropagation
             loss.backward()
@@ -483,16 +527,31 @@ def train():
             # Update parameters
             optimizer.step()
             
-            # Add batch loss to total epoch loss
+            # Track component losses
             train_loss += loss.item()
+            train_token_loss += token_loss.item()
+            train_bin_loss += bin_loss.item()
+            train_kl_loss += kl_loss.item()
+            if hasattr(shape_loss, 'item'):
+                train_shape_loss += shape_loss.item()
             
             # Log progress
             if batch_idx % 10 == 0:
-                logging.info(f"Epoch {epoch+1}/{Config.num_epochs} | Batch {batch_idx}/{len(train_dataloader)} | Loss: {loss.item():.4f}")
+                logging.info(f"Epoch {epoch+1}/{Config.num_epochs} | Batch {batch_idx}/{len(train_dataloader)} | "
+                           f"Loss: {loss.item():.4f} | Shape Loss: {shape_loss.item() if hasattr(shape_loss, 'item') else 0:.4f}")
         
-        # Calculate average training loss
+        # Calculate average training losses
         avg_train_loss = train_loss / len(train_dataloader)
+        avg_token_loss = train_token_loss / len(train_dataloader)
+        avg_bin_loss = train_bin_loss / len(train_dataloader)
+        avg_kl_loss = train_kl_loss / len(train_dataloader)
+        avg_shape_loss = train_shape_loss / len(train_dataloader) if train_shape_loss > 0 else 0
+        
         train_losses.append(avg_train_loss)
+        train_token_losses.append(avg_token_loss)
+        train_bin_losses.append(avg_bin_loss)
+        train_kl_losses.append(avg_kl_loss)
+        train_shape_losses.append(avg_shape_loss)
         
         # Validation phase
         encoder.eval()
@@ -549,102 +608,4 @@ def train():
                 'val_losses': val_losses
             }, os.path.join(Config.checkpoint_dir, f'checkpoint_epoch_{epoch+1}.pth'))
         
-        # Log epoch results
-        epoch_time = time.time() - start_time
-        logging.info(
-            f"Epoch {epoch+1}/{Config.num_epochs} completed in {epoch_time:.2f}s | "
-            f"Train Loss: {avg_train_loss:.4f} | Val Loss: {avg_val_loss:.4f}"
-        )
-        
-        # Save loss plot
-        save_loss_plot(
-            train_losses, val_losses,
-            os.path.join(Config.output_dir, 'loss_plot.png')
-        )
-        
-        # Save reconstruction examples every 10 epochs
-        if (epoch + 1) % 10 == 0:
-            save_reconstruction_examples(epoch + 1, encoder, decoder, val_dataloader, device)
-    
-    logging.info("Training completed!")
-    
-    # Save final model
-    torch.save({
-        'encoder_state_dict': encoder.state_dict(),
-        'decoder_state_dict': decoder.state_dict(),
-        'optimizer_state_dict': optimizer.state_dict(),
-        'train_losses': train_losses,
-        'val_losses': val_losses
-    }, os.path.join(Config.checkpoint_dir, 'final_model.pth'))
-    
-    # Save final loss plot
-    save_loss_plot(
-        train_losses, val_losses,
-        os.path.join(Config.output_dir, 'final_loss_plot.png')
-    )
-    
-    return encoder, decoder, train_losses, val_losses
-
-def test(encoder, decoder, test_dataloader, device):
-    """Test the trained model"""
-    encoder.eval()
-    decoder.eval()
-    
-    test_loss = 0
-    chamfer_distances = []
-    
-    with torch.no_grad():
-        for point_clouds, token_seqs in test_dataloader:
-            # Move data to device
-            point_clouds = point_clouds.to(device)
-            token_seqs = token_seqs.to(device)
-            
-            # Extract token and bin values
-            target_tokens = token_seqs[:, :, 0]
-            target_bins = token_seqs[:, :, 1]
-            
-            # Encode and decode
-            mu, logvar = encoder(point_clouds)
-            z = reparameterize(mu, logvar)
-            token_probs, bin_probs, offsets = decoder(z)
-            
-            # Get predicted tokens and bins
-            pred_tokens = torch.argmax(token_probs, dim=-1)
-            pred_bins = torch.argmax(bin_probs, dim=-1)
-            
-            # Compute token prediction loss
-            loss = vae_loss(token_probs, bin_probs, target_tokens, target_bins, mu, logvar)
-            test_loss += loss.item()
-            
-            # Compute Chamfer distance for each shape
-            for i in range(len(point_clouds)):
-                # Convert predicted tokens to operations
-                token_ops = convert_tokens_to_operations(
-                    pred_tokens[i].cpu().numpy(),
-                    pred_bins[i].cpu().numpy()
-                )
-                
-                # Generate point cloud from operations
-                try:
-                    gen_points = generate_shape_from_tokens(token_ops)
-                    if gen_points is not None:
-                        # Calculate Chamfer distance
-                        distance = compute_shape_loss(
-                            point_clouds[i].cpu().numpy(), 
-                            token_ops
-                        )
-                        chamfer_distances.append(distance)
-                except Exception as e:
-                    logging.error(f"Error generating shape: {e}")
-    
-    # Calculate average loss and distances
-    avg_test_loss = test_loss / len(test_dataloader)
-    avg_chamfer = np.mean(chamfer_distances) if chamfer_distances else float('inf')
-    
-    logging.info(f"Test Loss: {avg_test_loss:.4f} | Avg Chamfer Distance: {avg_chamfer:.4f}")
-    
-    return avg_test_loss, avg_chamfer
-
-if __name__ == "__main__":
-    # Run training
-    encoder, decoder, train_losses, val_losses = train()
+        # Log epoch
