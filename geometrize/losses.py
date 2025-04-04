@@ -1,6 +1,5 @@
 import torch
 import torch.nn.functional as F
-import numpy as np
 
 def vae_loss(recon_token_probs, recon_bin_probs, target_tokens, target_bins, mu, logvar):
     """Combined VAE loss with reconstruction and KL divergence components."""

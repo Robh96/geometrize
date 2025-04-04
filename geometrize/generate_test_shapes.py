@@ -1,9 +1,7 @@
 import os
 import numpy as np
 from stl import mesh
-import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from config import Config
+from geometrize.config import Config
 
 def generate_sphere(radius=1.0, resolution=36):
     """Generate a sphere mesh."""

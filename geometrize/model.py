@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from token_map import TokenMap
+from geometrize.token_map import TokenMap  # Fix: use full package path
 
 class PointNetEncoder(nn.Module):
     def __init__(self, latent_dim=256):

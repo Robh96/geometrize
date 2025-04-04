@@ -6,15 +6,15 @@ import glob
 import time
 import random
 import matplotlib.pyplot as plt
-from model import PointNetEncoder, TransformerDecoder
-from losses import vae_loss, hausdorff_distance
-from data_processing import load_stl_to_pointcloud
-from shape_generator import (
+from geometrize.model import PointNetEncoder, TransformerDecoder
+from geometrize.losses import vae_loss, hausdorff_distance
+from geometrize.data_processing import load_stl_to_pointcloud
+from geometrize.shape_generator import (
     generate_shape_from_tokens, compute_shape_loss,
     OperationType, PrimitiveType, TransformType, BooleanType  # Add these imports at the module level
 )
-from config import Config
-from token_map import TokenMap
+from geometrize.config import Config
+from geometrize.token_map import TokenMap
 import logging
 
 # Setup logging

@@ -1,7 +1,6 @@
 import numpy as np
 import open3d as o3d
 from build123d import *
-import math
 import tempfile
 import os
 from enum import Enum, auto
