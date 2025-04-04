@@ -1,0 +1,61 @@
+- Aim:
+Given an STL file of a shape, learn the fewest number of shapes and transformations that when performed sequentially can recreate it.
+
+    Allowable shapes:
+    - sphere(x, y, z, r),
+    - cuboid(x, y, z, dx, dy, dz),
+    - cone(x, y, z, norm_x, norm_y, norm_z, r0, r1),
+        - if r0 = r1, then replace with cylinder
+    
+    Allowable transformations
+    - boolean union(object_1, object_2) -> object,
+    - boolean subtract(object_1, object_2) -> object,
+    - scale(object, x_factor, y_factor, z_factor),
+    - translate(object, dx, dy, dz),
+    - rotate(object, center, theta_x, theta_y, theta_z),
+    - mirror(object, center, norm_x, norm_y, norm_z),
+
+    Constraints:
+    - Starting from a seed shape, each shape must always be connected to another shape when added.
+
+    input data:
+    - point cloud STL file.
+    
+    Pre-processing:
+    - Normalise point cloud data (center the point cloud around the origin and scale it to a unit cube).
+    - Downsample the point cloud to a manageable number of points.
+
+    Autoencoder architecture:
+    - Pointnet to extract features from point cloud.
+    - Variational autoencoder such that the latent space is a continuous probability distribution.
+    - Beta-VAE to disentangle the latent space.
+    - Decoder final layer outputs a probability distribution over the token vocabulary.
+    - The decoder will generate the command sequence step by step (next token prediction) using Transformer.
+
+    Encoder:
+    - PointNet.
+    - input: point cloud.
+    - output: latent representation.
+
+    Decoder:
+    - Transformer-based network
+    - output layer modified to produce a sequence of command tokens and numerical parameters.
+    - numerical values output as bin indices corresponding to a range of values.
+    - regression refinement added to decoder to predict residual offset from the center of the chosen bin.
+    - The tokens and bins map to CAD commands and values.
+
+    Loss function:
+    - Cross-entropy loss will measure difference between predicted and actual token probabilities.
+    - L1 or L2 loss to measure loss between predicted and actual values.
+    - Hausdorff distance to compare the generates STL file to the original STL file.
+    - Validate that the connectivity constraints are met. Heavy penalty if not.
+
+    Training process:
+        Dataset preparation:
+        - point clouds vs corresponding CAD command sequences.
+
+        Training loop:
+        - Encode point cloud into latent representation.
+        - Decode latent representation into CAD command sequence.
+        - calculate loss between predicted and actual command sequences.
+        - update model weights using backpropagation.

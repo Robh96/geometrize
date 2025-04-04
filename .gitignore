@@ -1,0 +1,40 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# Checkpoints and outputs
+.checkpoints/
+.outputs/
+
+# Data files (consider using git-lfs instead)
+# Uncomment if you want to exclude data files
+.data/
+
+# IDE files
+.vscode/
+.idea/
+*.sublime-project
+*.sublime-workspace
+
+# Environment
+.env
+.venv
+env/
+venv/
+ENV/
+
+# Logs
+*.log
+logs/
+training.log
+
+# Temporary files
+*.tmp
+*.temp
+.DS_Store
