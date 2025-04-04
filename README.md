@@ -82,6 +82,64 @@ with torch.no_grad():
     output_points = generate_shape_from_tokens(operations)
 ```
 
+### Command Line Usage
+
+Geometrize can also be used directly from the command line for both training and inference.
+
+#### Training
+
+To train a new model:
+
+```bash
+# Basic training with default parameters
+python -m geometrize.train
+
+# Training with custom parameters
+python -m geometrize.train --batch-size 32 --epochs 100 --learning-rate 0.0005 --beta 0.1 --shape-weight 0.5
+```
+
+Options:
+- `--batch-size`: Batch size for training (default: 16)
+- `--epochs`: Number of training epochs (default: 50)
+- `--learning-rate`: Learning rate for the optimizer (default: 0.001)
+- `--beta`: Beta value for the KL divergence term (default: 0.1)
+- `--shape-weight`: Weight for the shape loss component (default: 0.5)
+- `--data-dir`: Directory containing STL files for training (default: ./data)
+- `--output-dir`: Directory to save outputs and visualizations (default: ./outputs)
+- `--checkpoint-dir`: Directory to save model checkpoints (default: ./checkpoints)
+- `--resume`: Path to checkpoint for resuming training (optional)
+
+#### Inference
+
+To run inference on STL files:
+
+```bash
+# Run inference on a single STL file
+python -m geometrize.infer --input path/to/shape.stl --model path/to/model.pth --output path/to/output.stl
+
+# Run inference on all STL files in a directory
+python -m geometrize.infer --input-dir path/to/stl_dir --model path/to/model.pth --output-dir path/to/output_dir
+```
+
+Options:
+- `--input`: Path to input STL file (for single file inference)
+- `--input-dir`: Directory containing STL files (for batch inference)
+- `--model`: Path to the trained model checkpoint
+- `--output`: Path to save the reconstructed STL file (for single file inference)
+- `--output-dir`: Directory to save reconstructed STL files (for batch inference)
+- `--visualize`: Flag to visualize comparisons between original and reconstructed shapes
+- `--num-points`: Number of points to sample from each STL file (default: 2048)
+- `--latent-dim`: Latent dimension size matching the trained model (default: 256)
+
+Example:
+```bash
+# Process a single file with visualization
+python -m geometrize.infer --input myshape.stl --model best_model.pth --output reconstructed.stl --visualize
+
+# Process all files in a directory
+python -m geometrize.infer --input-dir ./test_shapes --model ./checkpoints/final_model.pth --output-dir ./reconstructions
+```
+
 ## Testing
 
 Run the test scripts to verify functionality:
@@ -111,7 +169,7 @@ python -m geometrize.test_shape_generator
 
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 License - see the [LICENSE](LICENSE) file for details.
 
 ## Acknowledgments
 
