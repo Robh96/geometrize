@@ -13,8 +13,8 @@ build/
 .outputs/
 
 # Data files (consider using git-lfs instead)
-# Uncomment if you want to exclude data files
-.data/
+# Uncomment to exclude data files
+# .data/
 
 # IDE files
 .vscode/
