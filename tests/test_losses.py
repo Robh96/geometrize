@@ -2,9 +2,9 @@ import torch
 import numpy as np
 import matplotlib.pyplot as plt
 import os
-from losses import vae_loss, hausdorff_distance
-from token_map import TokenMap
-from config import Config
+from geometrize.losses import vae_loss, hausdorff_distance
+from geometrize.token_map import TokenMap
+from geometrize.config import Config
 
 def test_vae_loss():
     """Test the VAE loss function"""
