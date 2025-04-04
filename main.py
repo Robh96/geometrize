@@ -58,22 +58,22 @@ def setup_argparse():
 def run_tests(module='all'):
     """Run the specified tests"""
     if module == 'all' or module == 'model':
-        from geometrize.test_model import run_all_tests as test_model
+        from tests.test_model import run_all_tests as test_model
         print("Running model tests...")
         test_model()
     
     if module == 'all' or module == 'losses':
-        from geometrize.test_losses import run_all_tests as test_losses
+        from tests.test_losses import run_all_tests as test_losses
         print("Running loss function tests...")
         test_losses()
     
     if module == 'all' or module == 'pipeline':
-        from geometrize.test_pipeline import run_all_tests as test_pipeline
+        from tests.test_pipeline import run_all_tests as test_pipeline
         print("Running pipeline tests...")
         test_pipeline()
     
     if module == 'all' or module == 'processing':
-        from geometrize.test_processing import test_stl_processing
+        from tests.test_processing import test_stl_processing
         print("Running data processing tests...")
         # Just use a sample shape if available
         stl_path = os.path.join(Config.data_dir, "sphere.stl")
@@ -82,12 +82,12 @@ def run_tests(module='all'):
         test_stl_processing(stl_path)
     
     if module == 'all' or module == 'shape_generator':
-        from geometrize.test_shape_generator import run_all_tests as test_shape_generator
+        from tests.test_shape_generator import run_all_tests as test_shape_generator
         print("Running shape generator tests...")
         test_shape_generator()
     
     if module == 'all' or module == 'token_conversion':
-        from geometrize.test_token_conversion import run_all_tests as test_token_conversion
+        from tests.test_token_conversion import run_all_tests as test_token_conversion
         print("Running token conversion tests...")
         test_token_conversion()
 
